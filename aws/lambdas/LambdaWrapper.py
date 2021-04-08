@@ -1,27 +1,29 @@
 import traceback
 
-from trading_engine_source.db.DBSession import DBSession
-from trading_engine_source.email.EmailService import EmailService
-from trading_engine_source.email.email_templates.lambda_error import LAMBDA_ERROR_TEMPLATE
-from trading_engine_source.infrastructure.loggers.Logger import Logger
-from trading_engine_source.utils.string_utils import to_json, to_html
+from aws.emails.EmailService import EmailService
+from aws.lambdas.lambda_error_template import LAMBDA_ERROR_TEMPLATE
+from db.DBSession import DBSession
+from logs.Logger import Logger
+from utils.string_utils import to_json, to_html
 
 
 class LambdaWrapper:
-    def __init__(self, logger: Logger, max_log_size: int = 10000):
+    def __init__(self, logger: Logger, email_sender_address, recipient_list, max_log_size: int = 10000):
+        self.email_sender_address = email_sender_address
+        self.recipient_list = recipient_list
         self.logger: Logger = logger
         self.max_log_size: int = max_log_size
-        self.email_service = EmailService.default(logger=logger)
+        self.email_service = EmailService(sender=self.email_sender_address, logger=self.logger)
 
-    def run(self, handler, event, context, function_name='', is_test=False):
+    def run(self, handler, event, context, function_name, send_email_on_error=True):
         try:
-            with DBSession(logger=self.logger) as db_session:
+            with DBSession(logger=self.logger, conn_string='postgresql+pg8000://user:pass@host/dbname') as db_session:
                 self.logger.info(f'Event:\n {to_json(event)[:self.max_log_size]}')
                 self.logger.info(f'Context:\n {to_json(event)[:self.max_log_size]}')
                 return handler(event=event, context=context, logger=self.logger, db_session=db_session)
 
         except Exception as e:
-            if is_test:
+            if send_email_on_error:
                 raise e
 
             error_message = str(e)
@@ -41,8 +43,9 @@ class LambdaWrapper:
             })
 
             self.email_service.send_email_to_all_subscribers(
-                email_subject='[TRADING ENGINE] -> Lambda Function Error',
+                email_subject='[YOUR APP NAME] -> Lambda Function Error',
                 content_template=LAMBDA_ERROR_TEMPLATE,
+                recipients=self.recipient_list,
                 params={
                     'response': to_html(response),
                     'function_name': function_name,

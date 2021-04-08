@@ -3,7 +3,10 @@ This package contains utility code which I have found myself using over and over
 Since these utilities have proven to be invaluable to me, I have decided to share them with the rest of the world.  
 
 ## Contents
-TODO...
+1. Logging utilities
+2. DB Utilities
+3. Lambda Wrapper
+4. Email service
 
 ## How to use this
 TODO...

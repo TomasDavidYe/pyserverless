@@ -2,12 +2,11 @@ import pandas as pd
 from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 
+from logs.Logger import Logger
 
 
-# Newer implementation of DB access than DB Connector.
-# Use if you want to run multiple queries in a single session
 class DBSession:
-    def __init__(self, conn_string: str, logger):
+    def __init__(self, conn_string: str, logger: Logger):
         self.engine = create_engine(conn_string)
         self.get_session = sessionmaker(bind=self.engine)
         self.session = None
